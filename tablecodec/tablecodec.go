@@ -43,6 +43,7 @@ const (
 	RecordRowKeyLen       = prefixLen + idLen /*handle*/
 	tablePrefixLength     = 1
 	recordPrefixSepLength = 2
+	indexPrefixSepLength = 2
 )
 
 // TableSplitKeyLen is the length of key 't{table_id}' which is used for table split.
@@ -72,7 +73,33 @@ func EncodeRowKeyWithHandle(tableID int64, handle int64) kv.Key {
 // DecodeRecordKey decodes the key and gets the tableID, handle.
 func DecodeRecordKey(key kv.Key) (tableID int64, handle int64, err error) {
 	/* Your code here */
-	return
+	if key == nil {
+		return -1, -1, errors.New("key value can not be nil")
+	}
+
+	currentKeyTablePrefix := string(key[:tablePrefixLength])
+	if currentKeyTablePrefix != string(tablePrefix) {
+		return -1, -1, errors.New("table prefix not fix.")
+	}
+	key = key[tablePrefixLength:]
+
+	key, tableID, err = codec.DecodeInt(key)
+	if err != nil {
+		return -1, -1, err
+	}
+
+	currentRecordPrefix := string(key[:recordPrefixSepLength])
+	if currentRecordPrefix != string(recordPrefixSep) {
+		return -1, -1, errors.New("record prefix not fix.")
+	}
+	key = key[recordPrefixSepLength:]
+
+	key, handle, err = codec.DecodeInt(key)
+	if err != nil {
+		return -1, -1, err
+	}
+
+	return tableID, handle, nil
 }
 
 // appendTableIndexPrefix appends table index prefix  "t[tableID]_i".
@@ -95,7 +122,33 @@ func EncodeIndexSeekKey(tableID int64, idxID int64, encodedValue []byte) kv.Key 
 // DecodeIndexKeyPrefix decodes the key and gets the tableID, indexID, indexValues.
 func DecodeIndexKeyPrefix(key kv.Key) (tableID int64, indexID int64, indexValues []byte, err error) {
 	/* Your code here */
-	return tableID, indexID, indexValues, nil
+	if key == nil {
+		return -1, -1, key, errors.New("key value can not be nil")
+	}
+
+	currentKeyTablePrefix := string(key[:tablePrefixLength])
+	if currentKeyTablePrefix != string(tablePrefix) {
+		return -1, -1, key,  errors.New("table prefix not fix.")
+	}
+	key = key[tablePrefixLength:]
+
+	key, tableID, err = codec.DecodeInt(key)
+	if err != nil {
+		return -1, -1, key, err
+	}
+
+	currentIndexPrefix := string(key[:indexPrefixSepLength])
+	if currentIndexPrefix != string(indexPrefixSep) {
+		return -1, -1, key, errors.New("index prefix not fix.")
+	}
+	key = key[indexPrefixSepLength:]
+
+	key, indexID, err = codec.DecodeInt(key)
+	if err != nil {
+		return -1, -1, key, err
+	}
+
+	return tableID, indexID, key, nil
 }
 
 // DecodeIndexKey decodes the key and gets the tableID, indexID, indexValues.
